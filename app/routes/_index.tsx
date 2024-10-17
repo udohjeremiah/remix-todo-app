@@ -10,6 +10,7 @@ import {
 import { useEffect, useRef } from "react";
 import type { Item, View } from "~/types";
 
+import ThemeSwitcher from "~/components/ThemeSwitcher";
 import TodoActions from "~/components/TodoActions";
 import TodoList from "~/components/TodoList";
 
@@ -107,11 +108,7 @@ export default function Home() {
         <h1 className="text-4xl font-extrabold tracking-tight lg:text-5xl">
           TODO
         </h1>
-        <select className="appearance-none rounded-3xl border border-gray-200 bg-gray-50 px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
-          <option>System</option>
-          <option>Light</option>
-          <option>Dark</option>
-        </select>
+        <ThemeSwitcher />
       </header>
 
       <main className="flex-1 space-y-8">
