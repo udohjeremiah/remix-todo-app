@@ -7,6 +7,7 @@ import {
   useLoaderData,
   useSearchParams,
 } from "@remix-run/react";
+import { useEffect, useRef } from "react";
 import type { Item, View } from "~/types";
 
 import TodoActions from "~/components/TodoActions";
@@ -86,6 +87,19 @@ export default function Home() {
   const fetcher = useFetcher();
   const [searchParams] = useSearchParams();
   const view = searchParams.get("view") || "all";
+  const addFormRef = useRef<HTMLFormElement>(null);
+  const addInputRef = useRef<HTMLInputElement>(null);
+
+  const isAdding =
+    fetcher.state === "submitting" &&
+    fetcher.formData?.get("intent") === "create task";
+
+  useEffect(() => {
+    if (!isAdding) {
+      addFormRef.current?.reset();
+      addInputRef.current?.focus();
+    }
+  }, [isAdding]);
 
   return (
     <div className="flex flex-1 flex-col md:mx-auto md:w-[720px]">
@@ -102,11 +116,16 @@ export default function Home() {
 
       <main className="flex-1 space-y-8">
         <fetcher.Form
+          ref={addFormRef}
           method="post"
           className="rounded-full border border-gray-200 bg-white/90 shadow-md dark:border-gray-700 dark:bg-gray-900"
         >
-          <fieldset className="flex items-center gap-2 p-2 text-sm">
+          <fieldset
+            disabled={isAdding}
+            className="flex items-center gap-2 p-2 text-sm disabled:pointer-events-none disabled:opacity-25"
+          >
             <input
+              ref={addInputRef}
               type="text"
               name="description"
               placeholder="Create a new todo..."
@@ -118,7 +137,7 @@ export default function Home() {
               value="create task"
               className="rounded-full border-2 border-gray-200/50 bg-gradient-to-tl from-[#00fff0] to-[#0083fe] px-3 py-2 text-base font-black transition hover:scale-105 hover:border-gray-500 sm:px-6 dark:border-white/50 dark:from-[#8e0e00] dark:to-[#1f1c18] dark:hover:border-white"
             >
-              Add
+              {isAdding ? "Adding..." : "Add"}
             </button>
           </fieldset>
         </fetcher.Form>
