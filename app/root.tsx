@@ -1,5 +1,6 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import {
+  Link,
   Links,
   Meta,
   Outlet,
@@ -41,6 +42,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Scripts />
       </body>
     </html>
+  );
+}
+
+export function ErrorBoundary() {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-4">
+      <h1 className="text-center text-4xl font-extrabold tracking-tight lg:text-5xl">
+        Oops, an error occurred!
+      </h1>
+      <Link
+        to="."
+        replace
+        className="inline-flex justify-center rounded-full border border-gray-200 bg-gray-50 px-8 py-4 text-xl font-medium hover:border-gray-500 dark:border-gray-700 dark:bg-gray-900"
+      >
+        Try again
+      </Link>
+    </div>
   );
 }
 

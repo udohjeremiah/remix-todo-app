@@ -1,20 +1,27 @@
-import type { ActionFunctionArgs, MetaFunction } from "@remix-run/node";
+import type {
+  ActionFunctionArgs,
+  LoaderFunctionArgs,
+  MetaFunction,
+} from "@remix-run/node";
 import {
   Form,
   Link,
   json,
+  redirect,
   useFetcher,
   useLoaderData,
   useSearchParams,
 } from "@remix-run/react";
 import { useEffect, useRef } from "react";
+import { getSession } from "~/sessions.server";
 import type { Item, View } from "~/types";
 
+import ProfileMenu from "~/components/ProfileMenu";
 import ThemeSwitcher from "~/components/ThemeSwitcher";
 import TodoActions from "~/components/TodoActions";
 import TodoList from "~/components/TodoList";
 
-import { todos } from "~/lib/db.server";
+import { getUser, todos } from "~/lib/db.server";
 
 export const meta: MetaFunction = () => {
   return [
@@ -26,53 +33,78 @@ export const meta: MetaFunction = () => {
   ];
 };
 
-export async function loader() {
-  return json({ tasks: await todos.read() });
+export async function loader({ request }: LoaderFunctionArgs) {
+  // Validate the session to ensure a valid session ID is present.
+  const session = await getSession(request.headers.get("Cookie"));
+  if (!session.has("_id")) {
+    throw redirect("/signin", {
+      // Clear the cookie to handle cases where the session ID remains in the cookie
+      // but is no longer valid in the database. Without this, `commitSession` will
+      // continue calling `updateData` instead of `createData`, which updates the
+      // database but doesn't set a new session ID in the cookie. Clearing the cookie
+      // ensures `createData` runs on the next sign-in, creating a new session ID.
+      headers: { "Set-Cookie": "__session=; Max-Age=0" },
+    });
+  }
+
+  const { error, data: user } = await getUser(session.get("_id") as string);
+  if (error || !user) {
+    throw redirect("/signin");
+  }
+
+  return json({
+    id: user._id.toString(),
+    name: user.name,
+    email: user.email,
+    tasks: user.tasks,
+  });
 }
 
 export async function action({ request }: ActionFunctionArgs) {
+  const session = await getSession(request.headers.get("Cookie"));
   const formData = await request.formData();
 
+  const userId = session.get("_id") as string;
   const { intent, ...values } = Object.fromEntries(formData);
 
   switch (intent) {
     case "create task": {
       const { description } = values;
-      await todos.create(description as string);
+      await todos.create(userId, description as string);
       break;
     }
     case "toggle completion": {
-      const { id, completed } = values;
-      await todos.update(id as string, {
+      const { id: todoId, completed } = values;
+      await todos.update(userId, todoId as string, {
         completed: !JSON.parse(completed as string),
         completedAt: !JSON.parse(completed as string) ? new Date() : undefined,
       });
       break;
     }
     case "edit task": {
-      const { id } = values;
-      await todos.update(id as string, { editing: true });
+      const { id: todoId } = values;
+      await todos.update(userId, todoId as string, { editing: true });
       break;
     }
     case "save task": {
-      const { id, description } = values;
-      await todos.update(id as string, {
+      const { id: todoId, description } = values;
+      await todos.update(userId, todoId as string, {
         description: description as string,
         editing: false,
       });
       break;
     }
     case "delete task": {
-      const { id } = values;
-      await todos.delete(id as string);
+      const { id: todoId } = values;
+      await todos.delete(userId, todoId as string);
       break;
     }
     case "clear completed": {
-      await todos.clearCompleted();
+      await todos.clearCompleted(userId);
       break;
     }
     case "delete all": {
-      await todos.deleteAll();
+      await todos.deleteAll(userId);
       break;
     }
     default: {
@@ -108,7 +140,10 @@ export default function Home() {
         <h1 className="text-4xl font-extrabold tracking-tight lg:text-5xl">
           TODO
         </h1>
-        <ThemeSwitcher />
+        <div className="flex items-center justify-center gap-2">
+          <ThemeSwitcher />
+          <ProfileMenu />
+        </div>
       </header>
 
       <main className="flex-1 space-y-8">
