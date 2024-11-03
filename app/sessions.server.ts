@@ -1,4 +1,9 @@
-import { Cookie, createCookie, createSessionStorage } from "@remix-run/node";
+import {
+  Cookie,
+  createCookie,
+  createSessionStorage,
+  SessionStorage,
+} from "@remix-run/node";
 import { ObjectId } from "mongodb";
 
 import mongodb from "~/lib/mongodb.server";
@@ -121,13 +126,21 @@ async function createMongoDBSessionStorage({
   });
 }
 
-const { getSession, commitSession, destroySession } =
-  await createMongoDBSessionStorage({
-    cookie,
-    options: {
-      db: dbName,
-      coll: collName,
-    },
-  });
+const sessionStoragePromise = createMongoDBSessionStorage({
+  cookie,
+  options: {
+    db: dbName,
+    coll: collName,
+  },
+});
+
+const getSession: SessionStorage["getSession"] = async (...args) =>
+  (await sessionStoragePromise).getSession(...args);
+
+const commitSession: SessionStorage["commitSession"] = async (...args) =>
+  (await sessionStoragePromise).commitSession(...args);
+
+const destroySession: SessionStorage["destroySession"] = async (...args) =>
+  (await sessionStoragePromise).destroySession(...args);
 
 export { getSession, commitSession, destroySession };
